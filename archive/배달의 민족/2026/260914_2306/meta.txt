@@ -1,0 +1,10 @@
+query=배달의 민족
+captured_at=2026-09-14T23:06:30.453295+09:00
+01_검색상단.jpg OK
+shelf_title=배달의민족의 최신 Shorts 동영상
+02_선반_접힘.jpg OK
+더보기 클릭 OK
+shorts_count=40
+완전펼침확인(간략히버튼)=YES
+03_선반_전체.jpg OK (1282x3727)
+분할 4장
