@@ -66,15 +66,61 @@ def _dismiss_consent(page):
     return False
 
 
-def _find_shelf(page, max_scroll=40):
-    shelf = page.locator(SHELF_SEL).filter(has_text=SHELF_TEXT)
-    for _ in range(max_scroll):
-        if shelf.count():
-            shelf.first.scroll_into_view_if_needed()
+def _mark_shelf(page):
+    """태그 이름에 기대지 않고 '…최신 Shorts 동영상' 선반을 표시해 둔다.
+
+    유튜브가 세션마다 다른 레이아웃을 주기 때문에 grid-shelf-view-model 이 아닐 수 있다.
+    제목 텍스트를 먼저 찾고, 거기서 위로 올라가며 쇼츠 카드를 품은 가장 가까운 조상을 고른다.
+    """
+    return page.evaluate("""(want) => {
+      let title = null;
+      for (const el of document.querySelectorAll('h2, h3, span')) {
+        if ((el.innerText || '').includes(want)) { title = el; break; }
+      }
+      if (!title) return false;
+      let n = title;
+      for (let i = 0; i < 10 && n; i++) {
+        if (n.tagName === 'BODY' || n.tagName === 'MAIN') return false;
+        const cards = n.querySelectorAll('ytm-shorts-lockup-view-model, ytd-reel-item-renderer');
+        if (cards.length > 0) {
+          if (cards.length > 150) return false;          // 결과 목록 전체까지 올라간 경우
+          document.querySelectorAll('[data-hobis-shelf]')
+                  .forEach(e => e.removeAttribute('data-hobis-shelf'));
+          n.setAttribute('data-hobis-shelf', '1');
+          return true;
+        }
+        n = n.parentElement;
+      }
+      return false;
+    }""", SHELF_TEXT)
+
+
+def _find_shelf(page, log, max_scroll=45):
+    """바닥까지 훑어 내리며 선반을 찾는다. 못 찾으면 진단값을 로그에 남긴다."""
+    last_h = 0
+    for i in range(max_scroll):
+        if _mark_shelf(page):
+            shelf = page.locator('[data-hobis-shelf="1"]').first
+            shelf.scroll_into_view_if_needed()
             page.wait_for_timeout(800)
-            return shelf.first
-        page.evaluate("window.scrollBy(0, 2500)")
-        page.wait_for_timeout(800)
+            log.append(f"선반 발견(스크롤 {i}회)")
+            return shelf
+        page.evaluate("window.scrollTo(0, document.documentElement.scrollHeight)")
+        page.wait_for_timeout(900)
+        h = page.evaluate("document.documentElement.scrollHeight")
+        if h == last_h:                     # 더 안 늘어나면 로딩 기다렸다 한 번 더
+            page.wait_for_timeout(1500)
+            if page.evaluate("document.documentElement.scrollHeight") == h:
+                break
+        last_h = h
+    diag = page.evaluate("""() => ({
+      height: document.documentElement.scrollHeight,
+      results: document.querySelectorAll('ytd-video-renderer, yt-lockup-view-model').length,
+      shorts: document.querySelectorAll('ytm-shorts-lockup-view-model').length,
+      hasText: document.body.innerText.includes('최신 Shorts 동영상'),
+      shelves: document.querySelectorAll('grid-shelf-view-model').length,
+    })""")
+    log.append(f"진단: {diag}")
     return None
 
 
@@ -123,12 +169,8 @@ def _slice(png_path, out_dir, stem):
     return parts
 
 
-def capture(query, out_root):
-    stamp = datetime.now(KST).strftime("%y%m%d_%H%M")
-    out_dir = Path(out_root) / f"{re.sub(r'[^0-9A-Za-z가-힣]+', '', query)}_{stamp}"
-    out_dir.mkdir(parents=True, exist_ok=True)
-    log = [f"query={query}", f"captured_at={datetime.now(KST).isoformat()}"]
-
+def _attempt(query, out_dir, log, stamp, attempt):
+    """한 번의 브라우저 세션으로 캡처를 시도한다. 선반을 못 찾으면 None."""
     with sync_playwright() as pw:
         browser = pw.chromium.launch(args=["--lang=ko-KR"])
         ctx = browser.new_context(
@@ -153,14 +195,13 @@ def capture(query, out_root):
         page.screenshot(path=out_dir / "01_검색상단.jpg", type="jpeg", quality=JPEG_Q)
         log.append("01_검색상단.jpg OK")
 
-        shelf = _find_shelf(page)
+        shelf = _find_shelf(page, log)
         if shelf is None:
-            log.append(f"ERROR: '{SHELF_TEXT}' 선반 못 찾음 (유튜브 구조 변경 의심)")
-            page.screenshot(path=out_dir / "99_실패화면.jpg", type="jpeg", quality=JPEG_Q)
-            (out_dir / "meta.txt").write_text("\n".join(log), encoding="utf-8")
+            log.append(f"시도 {attempt}회차: '{SHELF_TEXT}' 선반 못 찾음")
+            page.screenshot(path=out_dir / f"99_실패화면_{attempt}.jpg",
+                            type="jpeg", quality=JPEG_Q)
             browser.close()
-            print("\n".join(log))
-            sys.exit(1)
+            return None
 
         title = shelf.locator("h2").first.inner_text().strip()
         log.append("shelf_title=" + title)
@@ -191,13 +232,31 @@ def capture(query, out_root):
 
         browser.close()
 
-    (out_dir / "meta.txt").write_text("\n".join(log), encoding="utf-8")
     (out_dir / "items.json").write_text(
         json.dumps(items, ensure_ascii=False, indent=1), encoding="utf-8")
-    print("\n".join(log))
-    print(f"\n→ {out_dir}")
     return {"dir": out_dir, "stamp": stamp, "query": query, "title": title,
             "count": n, "expanded": bool(collapse), "items": items}
+
+
+def capture(query, out_root, tries=3):
+    """유튜브가 세션마다 다른 레이아웃을 주므로, 선반을 못 찾으면 새 세션으로 다시 시도한다."""
+    stamp = datetime.now(KST).strftime("%y%m%d_%H%M")
+    out_dir = Path(out_root) / f"{re.sub(r'[^0-9A-Za-z가-힣]+', '', query)}_{stamp}"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    log = [f"query={query}", f"captured_at={datetime.now(KST).isoformat()}"]
+
+    for attempt in range(1, tries + 1):
+        result = _attempt(query, out_dir, log, stamp, attempt)
+        if result:
+            (out_dir / "meta.txt").write_text("\n".join(log), encoding="utf-8")
+            print("\n".join(log))
+            print(f"\n→ {out_dir}")
+            return result
+
+    log.append(f"ERROR: {tries}회 시도 모두 '{SHELF_TEXT}' 선반 못 찾음")
+    (out_dir / "meta.txt").write_text("\n".join(log), encoding="utf-8")
+    print("\n".join(log))
+    sys.exit(1)
 
 
 if __name__ == "__main__":
