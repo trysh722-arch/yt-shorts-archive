@@ -192,9 +192,12 @@ def capture(query, out_root):
         browser.close()
 
     (out_dir / "meta.txt").write_text("\n".join(log), encoding="utf-8")
+    (out_dir / "items.json").write_text(
+        json.dumps(items, ensure_ascii=False, indent=1), encoding="utf-8")
     print("\n".join(log))
     print(f"\n→ {out_dir}")
-    return out_dir
+    return {"dir": out_dir, "stamp": stamp, "query": query, "title": title,
+            "count": n, "expanded": bool(collapse), "items": items}
 
 
 if __name__ == "__main__":

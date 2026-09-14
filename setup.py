@@ -58,10 +58,25 @@ def git(*args, check=True):
     return r
 
 
+def _read_token(arg):
+    """토큰 문자열을 직접 받거나, 토큰이 들어있는 파일 경로를 받는다.
+
+    파일로 주면 토큰이 명령행·로그 어디에도 안 남는다.
+    """
+    p = Path(arg)
+    raw = arg
+    if p.exists() and p.is_file():
+        raw = p.read_text(encoding="utf-8", errors="ignore")
+    m = re.search(r"gh[ps]_[A-Za-z0-9]{36,}", raw)
+    if not m:
+        die("토큰을 못 찾았습니다. ghp_ 로 시작하는 값이나 그 값이 든 파일 경로를 넘겨주세요.")
+    return m.group(0)
+
+
 def main():
     if len(sys.argv) < 3:
         die("사용법: python setup.py <깃허브토큰> <시트URL> [저장소이름]")
-    token = sys.argv[1].strip()
+    token = _read_token(sys.argv[1])
     sheet_id = sheet_id_of(sys.argv[2])
     repo_name = sys.argv[3] if len(sys.argv) > 3 else "yt-shorts-archive"
 
