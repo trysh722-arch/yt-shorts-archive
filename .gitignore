@@ -1,4 +1,5 @@
 out/
 __pycache__/
 service_account.json
-archive/
+.token
+gh_token.txt
