@@ -1,0 +1,70 @@
+name: youtube-shorts-capture
+
+# 한국시간 08:00 / 20:00 (깃허브 크론은 UTC 기준)
+on:
+  schedule:
+    - cron: '0 23 * * *'   # 23:00 UTC = 08:00 KST
+    - cron: '0 11 * * *'   # 11:00 UTC = 20:00 KST
+  workflow_dispatch:
+    inputs:
+      query:
+        description: '검색어'
+        default: '배달의 민족'
+
+permissions:
+  contents: write
+
+env:
+  QUERY: ${{ github.event.inputs.query || '배달의 민족' }}
+  KEEP: 7                 # snapshots 브랜치에 남길 최근 회차 수
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: 의존성 설치
+        run: |
+          pip install --quiet playwright pillow
+          playwright install --with-deps chromium
+
+      - name: 캡처
+        run: python capture.py "$QUERY" out
+
+      - name: 결과를 snapshots 브랜치로 (히스토리 안 쌓이게 강제푸시)
+        if: success()
+        run: |
+          set -e
+          URL="https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}"
+          # 기존 스냅샷 가져오기 (브랜치 없으면 무시)
+          git clone --quiet --depth 1 -b snapshots "$URL" prev || true
+          mkdir -p snap
+          if [ -d prev ]; then
+            rm -rf prev/.git
+            cp -r prev/. snap/
+            rm -rf prev
+          fi
+          cp -r out/. snap/
+          # 최근 KEEP 회차만 남기고 오래된 폴더 삭제
+          ls -1d snap/*/ 2>/dev/null | sort | head -n -"$KEEP" | xargs -r rm -rf
+          cd snap
+          git init --quiet
+          git checkout --quiet -b snapshots
+          git add -A
+          git -c user.name=actions -c user.email=actions@github.com \
+              commit --quiet -m "capture $(TZ=Asia/Seoul date '+%Y-%m-%d %H:%M')"
+          git push --quiet --force "$URL" snapshots
+
+      - name: 산출물 보관 (실패해도 업로드 — 디버깅용)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: capture-${{ github.run_number }}
+          path: out
+          retention-days: 30
