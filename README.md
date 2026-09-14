@@ -27,37 +27,32 @@
 
 ## 설치
 
-### 1. 구글시트 만들고 공유
+사용자가 할 일은 **두 가지뿐**이고, 나머지는 `setup.py` 가 전부 한다.
 
-새 스프레드시트를 하나 만들고, 아래 주소에 **편집자**로 공유한다.
+### 1. 구글시트 만들고 공유 (이건 대신 못 해준다)
+
+빈 스프레드시트를 하나 만들고, 아래 주소에 **편집자**로 공유한다.
 
 ```
 cj-dashboard@madbox-354708.iam.gserviceaccount.com
 ```
 
-주소창의 `docs.google.com/spreadsheets/d/` **다음에 오는 긴 문자열**이 시트 ID다. 나중에 쓴다.
+서비스계정에 Drive 권한이 꺼져 있어 시트 생성·공유는 API로 불가능하다. 확인 완료(2026-09-14).
 
-### 2. 깃허브 저장소
+### 2. 깃허브 토큰 발급 (이것도 본인 계정이라 대신 못 해준다)
 
-1. **공개(Public)** 저장소를 새로 만든다.
-2. 이 폴더를 push 한다.
-3. Settings → Secrets and variables → Actions → New repository secret 으로 두 개를 넣는다.
+github.com → Settings → Developer settings → Personal access tokens → **Tokens (classic)**
+→ Generate new token → scope 는 **`repo`** 와 **`workflow`** 두 개만 체크 → 생성된 문자열 복사.
 
-   | 이름 | 값 |
-   |---|---|
-   | `GOOGLE_SA_JSON` | `service_account.json` 파일 **내용 전체**를 그대로 붙여넣기 |
-   | `SHEET_ID` | 1번에서 확인한 시트 ID |
+### 3. 나머지는 한 줄
 
-   서비스계정 파일은 `Desktop\클로드\시트API\service_account.json` 에 있다.
-   **이 파일은 저장소에 올리지 말 것.** `.gitignore` 에 이미 걸려 있다.
+```
+cd Desktop\클로드\yt_shorts_capture
+python setup.py <토큰> <시트URL>
+```
 
-4. Actions 탭 → `youtube-shorts-capture` → `Run workflow` 로 **수동 1회 실행**한다.
-   - 성공하면 시트에 탭이 생기고 첫 행이 들어간다.
-   - 썸네일이 깨져 보이면 1~2분 뒤 새로고침. 그래도 깨지면 저장소가 공개인지 확인한다.
-
-### 3. 끝
-
-이후로는 `_키워드` 탭에 줄을 추가하기만 하면 된다. 지우고 싶으면 B열에 `N`.
+이 한 줄이 공개 저장소 생성 → 코드 push → 시크릿 2개 등록 → 첫 실행 → 결과 확인까지 다 한다.
+토큰은 화면에도 파일에도 남지 않는다. 저장소 이름을 바꾸려면 세 번째 인자로 넘긴다.
 
 ## 내 PC에서 시험 삼아 돌리기
 
