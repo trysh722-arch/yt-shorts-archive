@@ -2,6 +2,7 @@
 
 사용법: python capture.py "배달의 민족" [출력폴더]
 """
+import json
 import re
 import sys
 from datetime import datetime, timedelta, timezone
@@ -17,6 +18,41 @@ VIEWPORT = {"width": 1920, "height": 1080}
 TILE_H = 1080                          # 긴 세로 캡처 분할 높이
 JPEG_Q = 92                            # 저장 품질(용량 절감)
 PAD = 16                               # 선반 좌우 여백
+
+ITEMS_JS = """(shelf) => [...shelf.querySelectorAll('ytm-shorts-lockup-view-model')].map(e => {
+  const a = e.querySelector('a[href]');
+  return {txt: e.innerText || '', href: a ? a.getAttribute('href') : ''};
+})"""
+
+
+def _views_to_int(text):
+    """'조회수 9.4만회' -> 94000. 못 읽으면 None."""
+    m = re.search(r"([\d.]+)\s*(억|만|천)?회", text.replace(",", ""))
+    if not m:
+        return None
+    n = float(m.group(1))
+    return int(n * {"억": 100000000, "만": 10000, "천": 1000}.get(m.group(2), 1))
+
+
+def _items(shelf):
+    """선반 안 쇼츠 목록을 [{순번,제목,조회수,조회수원문,영상ID,새동영상}] 로."""
+    out = []
+    for i, r in enumerate(shelf.evaluate(ITEMS_JS), start=1):
+        lines = [x.strip() for x in r["txt"].splitlines() if x.strip()]
+        is_new = bool(lines) and lines[0] == "새 동영상"
+        if is_new:
+            lines = lines[1:]
+        views = next((x for x in lines if "조회수" in x), "")
+        title = next((x for x in lines if "조회수" not in x), "")
+        out.append({
+            "순번": i,
+            "제목": title,
+            "조회수": _views_to_int(views),
+            "조회수원문": views,
+            "영상ID": (r["href"] or "").rsplit("/", 1)[-1],
+            "새동영상": "Y" if is_new else "",
+        })
+    return out
 
 
 def _dismiss_consent(page):
@@ -126,7 +162,8 @@ def capture(query, out_root):
             print("\n".join(log))
             sys.exit(1)
 
-        log.append("shelf_title=" + shelf.locator("h2").first.inner_text().strip())
+        title = shelf.locator("h2").first.inner_text().strip()
+        log.append("shelf_title=" + title)
         _shot_shelf(page, shelf, out_dir / "02_선반_접힘.jpg")
         log.append("02_선반_접힘.jpg OK")
 
@@ -140,7 +177,8 @@ def capture(query, out_root):
 
         _load_all_thumbs(page, shelf)
 
-        n = shelf.locator("ytm-shorts-lockup-view-model").count()
+        items = _items(shelf)
+        n = len(items)
         collapse = shelf.locator("button").filter(has_text=re.compile("간략히|Show less")).count()
         log.append(f"shorts_count={n}")
         log.append(f"완전펼침확인(간략히버튼)={'YES' if collapse else 'NO'}")
