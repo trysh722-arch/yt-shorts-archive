@@ -15,12 +15,18 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: youtube-shorts-capture-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   capture:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # 다른 실행이 먼저 푸시했을 때 rebase할 공통 이력 확보
 
       - uses: actions/setup-python@v5
         with:
@@ -30,6 +36,9 @@ jobs:
         run: |
           pip install --quiet playwright pillow gspread
           playwright install --with-deps chromium
+
+      - name: 오프라인 파싱 테스트
+        run: python test_offline.py
 
       - name: 서비스계정 키 쓰기
         env:
