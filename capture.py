@@ -277,8 +277,9 @@ def _find_shelf(page, log, max_scroll=45):
     log.append(f"진단: {diag}")
     if diag["hasText"]:
         log.append("일치 선반 제목: 본문 텍스트 존재, 컨테이너 연결 실패")
-    if bottom and diag["results"] >= 100 and not diag["hasText"]:
-        raise CaptureFailed("채널 Shorts 선반 없음", "이 검색어에는 채널 Shorts 선반이 없음")
+    # 바닥까지 훑었는데 제목 텍스트가 없으면 '없음'. 결과 수는 조건에서 뺐다(희귀 검색어도 대체 경로를 타야 한다).
+    if bottom and not diag["hasText"]:
+        raise CaptureFailed("채널 Shorts 선반 없음", f"이 검색어에는 채널 Shorts 선반이 없음 (결과 {diag['results']}개)")
     raise CaptureFailed("레이아웃/로딩 문제", f"선반 탐색 실패: {diag}")
 
 

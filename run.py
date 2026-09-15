@@ -180,7 +180,7 @@ def main():
             sheet.mark_keyword(sh, row, when, why)
 
     print(f"\n완료 {len(done)}/{len(targets)}")
-    if not done and any(why != "채널 Shorts 선반 없음" for _, _, why in failed):
+    if not done:   # '채널 선반 없음'도 이제 대체 경로로 성공해야 하므로, 전부 실패면 잡을 빨간불로
         sys.exit(1)
 
 
