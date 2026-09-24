@@ -1,0 +1,11 @@
+query=배민방학도시락
+captured_at=2026-09-25T00:43:57.967722+09:00
+시도 1/3: 새 브라우저 세션
+01_검색상단.jpg OK
+04_Shorts상단.jpg OK
+진단: {'height': 122035, 'results': 347, 'shorts': 155, 'hasText': False, 'shelves': 21, 'bottom': True}
+채널 선반 없음 → 일반 'Shorts' 선반 5개×4세트로 대체
+일반 Shorts 선반 4세트 캡처 → 03_선반_전체.jpg (1250, 2977)
+shorts_count=30
+03_선반_전체.jpg OK (1250x2977)
+분할 3장
