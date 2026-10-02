@@ -1,0 +1,12 @@
+query=배달앱수수료
+captured_at=2026-10-03T01:32:53.054098+09:00
+시도 1/3: 새 브라우저 세션
+01_검색상단.jpg OK
+04_Shorts상단.jpg OK
+진단: {'height': 146998, 'results': 492, 'shorts': 5, 'hasText': False, 'shelves': 1, 'bottom': True}
+채널 선반 없음 → 일반 'Shorts' 선반 5개×4세트로 대체
+WARN: 일반 Shorts 선반 1세트만 발견 (목표 4)
+일반 Shorts 선반 1세트 캡처 → 03_선반_전체.jpg (1250, 507)
+shorts_count=5
+03_선반_전체.jpg OK (1250x507)
+분할 1장
