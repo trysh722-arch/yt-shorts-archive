@@ -1,0 +1,11 @@
+query=배민
+captured_at=2026-10-16T00:32:06.748413+09:00
+시도 1/3: 새 브라우저 세션
+01_검색상단.jpg OK
+상단 Shorts 선반 없음: 썸네일은 채널 선반 접힘본으로 대체
+진단: {'height': 206257, 'results': 653, 'shorts': 95, 'hasText': False, 'shelves': 19, 'bottom': True}
+채널 선반 없음 → 일반 'Shorts' 선반 5개×4세트로 대체
+일반 Shorts 선반 4세트 캡처 → 03_선반_전체.jpg (1250, 2096)
+shorts_count=20
+03_선반_전체.jpg OK (1250x2096)
+분할 2장
